@@ -1,0 +1,10 @@
+[Unit]
+Description=LNLS Archiver automation script. Resume PVs that are connected. 
+
+[Service]
+Type=simple
+WorkingDir=/storage/mist/repository/lnls-epicsarchiver-automation
+ExecStart=/storage/mist/repository/lnls-epicsarchiver-automation/resumePausedPVs.py username password
+
+[Install]
+WantedBy=multi-user.target

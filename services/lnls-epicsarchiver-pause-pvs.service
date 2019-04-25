@@ -1,0 +1,10 @@
+[Unit]
+Description=LNLS Archiver automation script. Pause PVs that were diconnected for a certain period of time.
+
+[Service]
+Type=simple
+WorkingDir=/storage/mist/repository/lnls-epicsarchiver-automation
+ExecStart=/storage/mist/repository/lnls-epicsarchiver-automation/pauseDisconnectedPVs.py username password 60
+
+[Install]
+WantedBy=multi-user.target
