@@ -10,20 +10,21 @@ import requests
 import logging
 import multiplePVCheck
 
-from utils import configureLogging
+from utils import configureLogging, login
 
 logger = logging.getLogger(__name__)
+session = None
 
 def getCurrentlyDisconnectedPVs(bplURL):
     '''Get a list of PVs that are currently disconnected'''
     url = bplURL + '/getCurrentlyDisconnectedPVs'
-    currentlyDisconnectedPVs = requests.get(url).json()
+    currentlyDisconnectedPVs = session.get(url).json()
     return currentlyDisconnectedPVs
 
 def pausePVs(bplURL, pvNames):
     '''Bulk pause PVs specified in the pvNames'''
     url = bplURL + '/pauseArchivingPV'
-    pauseResponse = requests.post(url, json=pvNames).json()
+    pauseResponse = session.post(url, json=pvNames).json()
     return pauseResponse
 
 
@@ -44,15 +45,24 @@ if __name__ == "__main__":
     parser.add_argument('-v', "--verbose", action="store_true",  help="Turn on verbose logging")
     parser.add_argument('-b', "--batchsize", default=1000, type=int,  help="Batch size for submitting PV's to the archiver")
     parser.add_argument('-t', "--timeout", default="5", help="Specify the timeout to wait for all the PV's to connect")
-    parser.add_argument("url", help="This is the URL to the mgmt bpl interface of the appliance cluster. For example, http://arch.slac.stanford.edu/mgmt/bpl")
+    parser.add_argument('-url', default='https://10.0.38.42/mgmt/bpl' ,help='This is the URL to the mgmt bpl interface of the appliance cluster. For example, http://arch.slac.stanford.edu/mgmt/bpl')
     parser.add_argument("disconnTimeout", help="Pause those PV's that have not connected for this amount of time (in minutes")
+    parser.add_argument("username", help="Archiver username")
+    parser.add_argument("password", help="Archiver password")
+
 
     args = parser.parse_args()
     configureLogging(args.verbose)
+    session = login(username=args.username, password=args.password, url=args.url)
+
+    if session == None:
+        logger.error('Could not login!')
+        sys.exit(1)
 
     if not args.url.endswith('bpl'):
         logger.error("The URL %s needs to point to the mgmt bpl; for example, http://arch.slac.stanford.edu/mgmt/bpl", args.url)
         sys.exit(1)
+
     pvList = getCurrentlyDisconnectedPVs(args.url)
     if not pvList:
         logger.info("There are no disconnected PVs")

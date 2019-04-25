@@ -14,22 +14,23 @@ import multiplePVCheck
 import shlex
 import datetime
 
-from utils import configureLogging
+from utils import configureLogging, login
 from processArchiveFiles import findChangedFiles
 
 logger = logging.getLogger(__name__)
 
+session = None
 
 def getCurrentlyPausedPVs(bplURL):
     '''Get a list of PVs that are currently disconnected'''
     url = bplURL + '/getPausedPVsReport'
-    currentlyPausedPVs = requests.get(url).json()
+    currentlyPausedPVs = session.get(url).json()
     return currentlyPausedPVs
 
 def resumePVs(bplURL, pvNames):
     '''Bulk resume PVs specified in the pvNames'''
     url = bplURL + '/resumeArchivingPV'
-    resumeResponse = requests.post(url, json=pvNames).json()
+    resumeResponse = session.post(url, json=pvNames).json()
     return resumeResponse
 
 def getPVsFromRecentlyChangedArchiveFiles(rootFolder, filenamepattern, ignoreolder):
@@ -57,24 +58,33 @@ def checkForLivenessAndResume(args, batch):
     if livePVs:
         logger.info("Resuming %s live PVs", len(livePVs))
         resumePVs(args.url, list(livePVs))
+    else:
+        logger.info("No PVs to resume")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', "--verbose", action="store_true",  help="Turn on verbose logging")
     parser.add_argument('-b', "--batchsize", default=1000, type=int,  help="Batch size for submitting PV's to the archiver")
-    parser.add_argument('-t', "--timeout", default="5", help="Specify the timeout to wait for all the PV's to connect")
-    parser.add_argument('-r', "--rootFolder", help="The root folder of all the IOC archive request files")
-    parser.add_argument('-p', "--filenamepattern", help="The extended shell matching pattern used to determine archive request files, for example, */archive/*.archive", default="*/archive/*.archive")
+    parser.add_argument('-t', "--timeout", default="5", help="Specify the timeout to wait (minutes) for all the PV's to connect")
     parser.add_argument('-i', "--ignoreolder", default="30", help="Ignore archive files whose last modified date is older than this many days.", type=int)
-    parser.add_argument("url", help="This is the URL to the mgmt bpl interface of the appliance cluster. For example, http://arch.slac.stanford.edu/mgmt/bpl")
+    parser.add_argument("-url", default='https://10.0.38.42/mgmt/bpl', help="This is the URL to the mgmt bpl interface of the appliance cluster. For example, http://arch.slac.stanford.edu/mgmt/bpl")
+    parser.add_argument("username", help="Archiver username")
+    parser.add_argument("password", help="Archiver password")
 
     args = parser.parse_args()
     configureLogging(args.verbose)
 
+    session = login(username=args.username, password=args.password, url=args.url)
+
+    if session == None:
+        logger.error('Could not login!')
+        sys.exit(1)
+
     if not args.url.endswith('bpl'):
         logger.error("The URL %s needs to point to the mgmt bpl; for example, http://arch.slac.stanford.edu/mgmt/bpl. ", args.url)
         sys.exit(1)
+
     pausedPVs = getCurrentlyPausedPVs(args.url)
     if not pausedPVs:
         logger.info("There are no paused PVs")
@@ -82,17 +92,7 @@ if __name__ == "__main__":
 
     logger.info("%s PVs are paused", len(pausedPVs))
 
-    if args.rootFolder and args.filenamepattern:
-        pvNames = set([ x['pvName'] for x in pausedPVs ])
-        recentlyChangedPVs = getPVsFromRecentlyChangedArchiveFiles(args.rootFolder, args.filenamepattern, args.ignoreolder)
-        pvNames = pvNames.intersection(recentlyChangedPVs)
-        logger.info("%s recently changed PVs are paused", len(pvNames))
-        pvList = list(pvNames)
-        if not pvList:
-            logger.info("There are no recently changed paused PVs")
-            sys.exit(0)
-    else:
-        pvList = [ x['pvName'] for x in pausedPVs ]
+    pvList = [ x['pvName'] for x in pausedPVs ]
 
     def breakIntoBatches(l, n):
         '''Check for liveness and resume in batches specified by the batch size'''

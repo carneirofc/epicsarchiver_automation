@@ -1,7 +1,16 @@
-
 import os
 import sys
 import logging
+import requests
+
+def login(username, password, url):
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    payload = {'username':username, 'password':password}
+
+    session = requests.Session()
+    response = session.post(url + '/login', headers=headers, data=payload, verify=False)
+    return session if b'authenticated' in response.content else None
+
 
 def configureLogging(verbose):
     root = logging.getLogger()
