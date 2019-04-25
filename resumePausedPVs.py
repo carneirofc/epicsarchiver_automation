@@ -15,7 +15,6 @@ import shlex
 import datetime
 
 from utils import configureLogging, login
-from processArchiveFiles import findChangedFiles
 
 logger = logging.getLogger(__name__)
 
@@ -32,22 +31,6 @@ def resumePVs(bplURL, pvNames):
     url = bplURL + '/resumeArchivingPV'
     resumeResponse = session.post(url, json=pvNames).json()
     return resumeResponse
-
-def getPVsFromRecentlyChangedArchiveFiles(rootFolder, filenamepattern, ignoreolder):
-    changedFiles = findChangedFiles(rootFolder, filenamepattern, ignoreolder)
-    recentlyChangedPVs = set()
-    for changedFile in changedFiles:
-        lastModifiedTS = datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(rootFolder, changedFile)))
-        logger.info("Processing recently changed file %s", changedFile)
-
-        with open(os.path.join(rootFolder, changedFile), 'r') as f:
-            lines = f.readlines()
-
-        pvConfigEntries = [shlex.split(x) for x in filter(lambda x : x.strip() and not x.startswith("#"), lines)]
-        pvNames = set()
-        pvNames.update([x[0] for x in pvConfigEntries])
-        recentlyChangedPVs = recentlyChangedPVs.union(pvNames)
-    return recentlyChangedPVs
 
 def checkForLivenessAndResume(args, batch):
     '''Check for liveness of PV's and then bulk resume those that are alive'''

@@ -46,9 +46,9 @@ if __name__ == "__main__":
     parser.add_argument('-b', "--batchsize", default=1000, type=int,  help="Batch size for submitting PV's to the archiver")
     parser.add_argument('-t', "--timeout", default="5", help="Specify the timeout to wait for all the PV's to connect")
     parser.add_argument('-url', default='https://10.0.38.42/mgmt/bpl' ,help='This is the URL to the mgmt bpl interface of the appliance cluster. For example, http://arch.slac.stanford.edu/mgmt/bpl')
-    parser.add_argument("disconnTimeout", help="Pause those PV's that have not connected for this amount of time (in minutes")
     parser.add_argument("username", help="Archiver username")
     parser.add_argument("password", help="Archiver password")
+    parser.add_argument("disconnTimeout", help="Pause those PV's that have not connected for this amount of time (in minutes")
 
 
     args = parser.parse_args()
